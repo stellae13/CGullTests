@@ -1,17 +1,13 @@
+using Azure;
 using CGullProject;
 using CGullProject.Data;
 using CGullProject.Models;
 using CGullProject.Services;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using NuGet.ContentModel;
-using System;
-using System.Configuration;
-using System.Reflection.Metadata;
-using Xunit;
+using Microsoft.VisualBasic;
+using System.Security.Cryptography.Xml;
+using Xunit.Abstractions;
 
 namespace CGullTest2
 {
@@ -103,9 +99,7 @@ namespace CGullTest2
                 .Options);
     }
 
-
-    
-    public class UnitTest : IClassFixture<TestDatabaseFixture>
+    public class UnitTest1 : IClassFixture<TestDatabaseFixture>
     {
 
         public TestDatabaseFixture Fixture { get; } = new TestDatabaseFixture();
@@ -116,8 +110,9 @@ namespace CGullTest2
             //Arrange
             using var context = Fixture.CreateContext();
             var service = new ProductService(context);
+
+            //Act
             var controller = new CGullProject.Controllers.ItemController(service);
-            //Act 
 
             //Assert
             Assert.NotNull(controller);
@@ -128,21 +123,46 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var controller = new CGullProject.Controllers.CartController(context);
-            //Act 
+            var service = new CartService(context);
+
+            //Act
+            var controller = new CGullProject.Controllers.CartController(service);
 
             //Assert
             Assert.NotNull(controller);
 
         }
 
-
-        [Fact]
-        public async Task AddTooManyOfAnItemToCartAsync()
+        [Fact] 
+        public async Task GetCartTest()
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var controller = new CGullProject.Controllers.CartController(context);
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
+            var cartId = from b in context.Cart
+                         where b.Name == "Stella"
+                         select b.Id;
+       
+            //Act
+            var res = await controller.GetCart(cartId.First());
+
+            OkObjectResult objectResponse = Assert.IsType<OkObjectResult>(res);
+            var cart = objectResponse.Value;
+
+            //Assert
+            Assert.NotNull(res);
+            Assert.NotNull(cart);
+            Assert.True(res is OkObjectResult);
+        }
+
+        [Fact]
+        public async Task AddTooManyOfAnItemToCart()
+        {
+            //Arrange
+            using var context = Fixture.CreateContext();
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
@@ -150,9 +170,27 @@ namespace CGullTest2
             var quantity = 21;
 
             //Act 
-
             var result = await controller.AddItemToCart(cartId.First(), itemId, quantity);
-            Console.WriteLine(result);
+
+            //Assert
+            Assert.NotNull(result);
+            Assert.False(result is OkObjectResult);
+
+        }
+        [Fact]
+        public async Task AddItemToInvalidCart()
+        {
+            //Arrange
+            using var context = Fixture.CreateContext();
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
+            var cartId = new Guid();
+            var itemId = "000001";
+            var quantity = 21;
+
+            //Act 
+            var result = await controller.AddItemToCart(cartId, itemId, quantity);
+
             //Assert
             Assert.NotNull(result);
             Assert.False(result is OkObjectResult);
@@ -162,8 +200,10 @@ namespace CGullTest2
         [Fact]
         public async Task AddAnItemToCart()
         {
+            //Arrange
             using var context = Fixture.CreateContext();
-            var controller = new CGullProject.Controllers.CartController(context);
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
@@ -182,51 +222,167 @@ namespace CGullTest2
             //Asserts
             Assert.NotNull(result);
             Assert.NotNull(cartIt);
-            Assert.Equal(cartIt.First().InventoryId, itemId);
-            Assert.Equal(0,item.First().Stock);
-            Assert.True(result is OkObjectResult);
+            Assert.Equal(itemId, cartIt.First().InventoryId); // this line fails
+            Assert.Equal(0,item.First().Stock); // this line fails 
+            Assert.True(result is Microsoft.AspNetCore.Mvc.OkObjectResult);
         }
 
         [Fact]
-        public void GetAllItemsTest()
+        public async Task GetAllItemsTest()
         {
+            //Arrange
             using var context = Fixture.CreateContext();
             var service = new ProductService(context);
             var controller = new CGullProject.Controllers.ItemController(service);
+            List<Inventory> inventory = new List<Inventory>
+            {
+                new Inventory
+                {
+                    Id = "000001",
+                    Name = "Seagull Drink",
+                    CategoryId = 1,
+                    MSRP = 1.75M,
+                    SalePrice = 1.75M,
+                    Rating = 2.6M,
+                    Stock = 20
+                },
+                new Inventory
+                {
+                    Id = "000002",
+                    Name = "Seagull Chips",
+                    CategoryId = 1,
+                    SalePrice = 5.99M,
+                    MSRP = 5.99M,
+                    Rating = 4.5M,
+                    Stock = 25
+                }
+            };
 
-            Assert.True(true);
+            //Act
+            var res = await controller.GetAllItems();
+            OkObjectResult objectResponse = Assert.IsType<OkObjectResult>(res);
+            var obj = objectResponse.Value;
+            
+            //Assert
+            Assert.NotNull(res);
+            Assert.NotNull(obj);
+            Assert.Equal(inventory,obj);
+            Assert.True(res is OkObjectResult);
         }
 
         [Fact]
-        public void CheckoutValidCreditCard()
+        public async Task CheckoutValidCreditCard()
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var controller = new CGullProject.Controllers.CartController(context);
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
+            var itemId = "000001";
+            var quantity = 20;
+            await controller.AddItemToCart(cartId.First(), itemId, quantity);
 
+
+            var _cartId = cartId.First();
+            var cardNumber = "5105105105105100";
+            var theDate = new DateOnly(2030, 10, 21);
+            var cardHolderName = "Stella Garcia";
+            var cvv = "134";  
+            
             //Act 
+            var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
 
             //Assert
-            Assert.True(true);
+            Assert.NotNull(result);
+            Assert.True(result is OkResult);
         }
 
         [Fact]
-        public void CheckoutInvalidCreditCard()
+        public async Task CheckoutInvalidCreditCard()
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var controller = new CGullProject.Controllers.CartController(context);
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
+            var cartId = from b in context.Cart
+                          where b.Name == "Stella"
+                          select b.Id;
+            var itemId = "000001";
+            var quantity = 20;
+            await controller.AddItemToCart(cartId.First(), itemId, quantity);
+
+
+            var _cartId = cartId.First();
+            var cardNumber = "5105105105100";
+            var theDate = new DateOnly(2030, 10, 21);
+            var cardHolderName = "Stella Garcia";
+            var cvv = "13";
+
+            //Act 
+            var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
+
+            //Assert
+            Assert.NotNull(result);
+            Assert.False(result is OkResult);
+        }
+        [Fact]
+        public async Task CheckoutExpiredCreditCard()
+        {
+            //Arrange
+            using var context = Fixture.CreateContext();
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
+            var itemId = "000001";
+            var quantity = 20;
+            await controller.AddItemToCart(cartId.First(), itemId, quantity);
+
+
+            var _cartId = cartId.First();
+            var cardNumber = "5105105105105100";
+            var theDate = new DateOnly(2020, 10, 21);
+            var cardHolderName = "Stella Garcia";
+            var cvv = "133";
 
             //Act 
+            var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
 
             //Assert
-            Assert.True(true);
+            Assert.NotNull(result);
+            Assert.False(result is OkResult);
+        }
+
+        [Fact]
+        public async Task CheckoutInvalidCVVCreditCard()
+        {
+            //Arrange
+            using var context = Fixture.CreateContext();
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
+            var cartId = from b in context.Cart
+                         where b.Name == "Stella"
+                         select b.Id;
+            var itemId = "000001";
+            var quantity = 20;
+            await controller.AddItemToCart(cartId.First(), itemId, quantity);
+
+
+            var _cartId = cartId.First();
+            var cardNumber = "5105105105105100";
+            var theDate = new DateOnly(2025, 10, 21);
+            var cardHolderName = "Stella Garcia";
+            var cvv = "13";
+
+            //Act 
+            var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
+
+            //Assert
+            Assert.NotNull(result);
+            Assert.False(result is OkResult);
         }
 
         [Fact]
