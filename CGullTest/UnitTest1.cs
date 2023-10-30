@@ -201,8 +201,9 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
@@ -235,8 +236,9 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
@@ -256,8 +258,9 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
             var cartId = new Guid();
             var itemId = "000001";
             var quantity = 19;
@@ -276,8 +279,9 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
@@ -359,8 +363,11 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
+            var service2 = new CartService(context);
+            var controller2 = new CGullProject.Controllers.CartController(service2);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
@@ -376,7 +383,7 @@ namespace CGullTest2
             var cvv = "134";  
             
             //Act 
-            var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
+            var result = await controller2.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
 
             //Assert
             Assert.NotNull(result);
@@ -388,8 +395,11 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
+            var service2 = new CartService(context);
+            var controller2 = new CGullProject.Controllers.CartController(service2);
             var cartId = from b in context.Cart
                           where b.Name == "Stella"
                           select b.Id;
@@ -405,7 +415,7 @@ namespace CGullTest2
             var cvv = "13";
 
             //Act 
-            var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
+            var result = await controller2.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
 
             //Assert
             Assert.NotNull(result);
@@ -416,8 +426,11 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
+            var service2 = new CartService(context);
+            var controller2 = new CGullProject.Controllers.CartController(service2);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
@@ -433,7 +446,7 @@ namespace CGullTest2
             var cvv = "133";
 
             //Act 
-            var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
+            var result = await controller2.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
 
             //Assert
             Assert.NotNull(result);
@@ -445,8 +458,11 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
+            var service2 = new CartService(context);
+            var controller2 = new CGullProject.Controllers.CartController(service2);
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
@@ -462,7 +478,7 @@ namespace CGullTest2
             var cvv = "13";
 
             //Act 
-            var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
+            var result = await controller2.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
 
             //Assert
             Assert.NotNull(result);
@@ -474,9 +490,12 @@ namespace CGullTest2
         {
             //Arrange
             using var context = Fixture.CreateContext();
-            var service = new CartService(context);
-            var controller = new CGullProject.Controllers.CartController(service);
-            var cartId = await controller.CreateNewCart("NewCart");
+            var service = new ProductService(context);
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
+            var service2 = new CartService(context);
+            var controller2 = new CGullProject.Controllers.CartController(service2);
+            var cartId = await controller2.CreateNewCart("NewCart");
             OkObjectResult cart = Assert.IsType<OkObjectResult>(cartId);
             var cartID = (Guid)cart.Value;
             var itemId = "000001";
@@ -487,7 +506,7 @@ namespace CGullTest2
             var res2 = await controller.AddItemToCart(cartID, bundleId, quantity);
             //Act 
 
-            var result = await controller.GetTotals(cartID);
+            var result = await controller2.GetTotals(cartID);
             OkObjectResult objectResponse = Assert.IsType<OkObjectResult>(result);
             var obj = objectResponse.Value as TotalsDTO;
 
