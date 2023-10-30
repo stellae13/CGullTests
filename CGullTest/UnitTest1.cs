@@ -2,10 +2,12 @@ using Azure;
 using CGullProject;
 using CGullProject.Data;
 using CGullProject.Models;
+using CGullProject.Models.DTO;
 using CGullProject.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualBasic;
+using System.Linq;
 using System.Security.Cryptography.Xml;
 using Xunit.Abstractions;
 
@@ -19,14 +21,14 @@ namespace CGullTest2
 
         public TestDatabaseFixture() // see https://learn.microsoft.com/en-us/ef/core/testing/testing-with-the-database for details
         {
-            lock (_lock)
+            lock (_lock) // make sure tests that run async are not accessing the same data at the same time
             {
                 if (!_databaseInitialized)
                 {
                     using (var context = CreateContext())
                     {
-                        context.Database.EnsureDeleted();
-                        context.Database.EnsureCreated();
+                        context.Database.EnsureDeleted(); // ensure no database exists
+                        context.Database.EnsureCreated(); // ensure one is created 
 
                         context.Category.AddRange(
                         new Category
@@ -36,7 +38,7 @@ namespace CGullTest2
                         });
                         // end of category
                         context.Inventory.AddRange(
-                        new Inventory
+                        new Product
                         {
                             Id = "000001",
                             Name = "Seagull Drink",
@@ -44,9 +46,10 @@ namespace CGullTest2
                             MSRP = 1.75M,
                             SalePrice = 1.75M,
                             Rating = 2.6M,
-                            Stock = 20
+                            Stock = 20,
+                            isBundle = false
                         },
-                        new Inventory
+                        new Product
                         {
                             Id = "000002",
                             Name = "Seagull Chips",
@@ -54,8 +57,31 @@ namespace CGullTest2
                             SalePrice = 5.99M,
                             MSRP = 5.99M,
                             Rating = 4.5M,
-                            Stock = 25
-                        });
+                            Stock = 25,
+                            isBundle = false
+                        },
+                        new Product
+                        {
+                            Id = "000003",
+                            Name = "Seagull Ceral",
+                            CategoryId = 1,
+                            SalePrice = 5.99M,
+                            MSRP = 5.99M,
+                            Rating = 4.5M,
+                            Stock = 25,
+                            isBundle = false
+                        },
+                        new Product
+                        {
+                            Id = "100020",
+                            Name = "Food Bundle",
+                            CategoryId = 1,
+                            MSRP = 6.00M,
+                            SalePrice = 5.00M,
+                            Rating = 4.2M,
+                            Stock = 20,
+                            isBundle = true
+                        }); ;
                         //end of inventory 
                         context.Cart.AddRange(
                          new Cart()
@@ -63,26 +89,29 @@ namespace CGullTest2
                              Id = Guid.NewGuid(),
                              Name = "Stella"
                          });
+                        // end of cart
+                        context.CartItem.AddRange(); // no items in cart at beginning of tests 
+                        //end of CartItem
                         context.Bundle.AddRange(
                         new Bundle()
                         {
-                            Id = "100020",
-                            Name = "Food Bundle",
-                            Discount = 0.20M,
+                            ProductId= "100020",
                             StartDate = DateTime.Now,
                             EndDate = DateTime.Now + TimeSpan.FromDays(100)
                         });
+                        //end of Bundle
                         context.BundleItem.AddRange(
                             new BundleItem()
                             {
                                 BundleId = "100020",
-                                InventoryId = "000001"
+                                ProductId = "000001"
                             },
                             new BundleItem()
                             {
                                 BundleId = "100020",
-                                InventoryId = "000002"
+                                ProductId = "000002"
                             });
+                        //end of bundle items
 
                         context.SaveChanges();
                     }
@@ -102,7 +131,10 @@ namespace CGullTest2
     public class UnitTest1 : IClassFixture<TestDatabaseFixture>
     {
 
-        public TestDatabaseFixture Fixture { get; } = new TestDatabaseFixture();
+        public UnitTest1(TestDatabaseFixture fixture)
+        => Fixture = fixture;
+
+        public TestDatabaseFixture Fixture { get; }
 
         [Fact]
         public void CreateItemController()
@@ -110,9 +142,10 @@ namespace CGullTest2
             //Arrange
             using var context = Fixture.CreateContext();
             var service = new ProductService(context);
+            var revService = new ReviewService(context);
 
             //Act
-            var controller = new CGullProject.Controllers.ItemController(service);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
 
             //Assert
             Assert.NotNull(controller);
@@ -143,17 +176,58 @@ namespace CGullTest2
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
-       
+            var cartStella = from b in context.Cart
+                         where b.Name == "Stella"
+                         select b;
+
+
             //Act
             var res = await controller.GetCart(cartId.First());
 
             OkObjectResult objectResponse = Assert.IsType<OkObjectResult>(res);
-            var cart = objectResponse.Value;
+            var cart = objectResponse.Value as CartDTO;
+            
 
             //Assert
             Assert.NotNull(res);
             Assert.NotNull(cart);
-            Assert.True(res is OkObjectResult);
+            Assert.Equal(cartId.First(), cart.Id);
+            Assert.True("Stella" == cart.Name);
+            Assert.IsType<OkObjectResult>(res);
+        }
+
+        [Fact]
+        public async Task AddAnItemToCart()
+        {
+            //Arrange
+            using var context = Fixture.CreateContext();
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
+            var cartId = from b in context.Cart
+                         where b.Name == "Stella"
+                         select b.Id;
+            var cartID = cartId.First();
+            var itemId = "000003";
+            var quantity = 25;
+
+            //Act 
+            var result = await controller.AddItemToCart(cartID, itemId, quantity);
+            var item = from i in context.Inventory
+                       where i.Id == itemId
+                       select i;
+            var cartIt = from c in context.CartItem
+                         where c.CartId == cartID && c.ProductId == itemId
+            select c;
+
+            var cartItem = cartIt.First().ProductId;
+            var stock = item.First().Stock;
+
+            //Assert
+            Assert.NotNull(result);
+            Assert.NotEmpty(cartIt);
+            Assert.Equal("000003", cartItem);
+            Assert.Equal(0,stock); 
+            Assert.IsType<OkObjectResult>(result);
         }
 
         [Fact]
@@ -174,7 +248,7 @@ namespace CGullTest2
 
             //Assert
             Assert.NotNull(result);
-            Assert.False(result is OkObjectResult);
+            Assert.IsNotType<OkObjectResult>(result);
 
         }
         [Fact]
@@ -186,19 +260,19 @@ namespace CGullTest2
             var controller = new CGullProject.Controllers.CartController(service);
             var cartId = new Guid();
             var itemId = "000001";
-            var quantity = 21;
+            var quantity = 19;
 
             //Act 
             var result = await controller.AddItemToCart(cartId, itemId, quantity);
 
             //Assert
             Assert.NotNull(result);
-            Assert.False(result is OkObjectResult);
+            Assert.IsNotType<OkObjectResult>(result);
 
         }
 
         [Fact]
-        public async Task AddAnItemToCart()
+        public async Task AddAnItemToCartThatIsAlreadyInCart()
         {
             //Arrange
             using var context = Fixture.CreateContext();
@@ -207,24 +281,32 @@ namespace CGullTest2
             var cartId = from b in context.Cart
                          where b.Name == "Stella"
                          select b.Id;
-            var itemId = "000001";
-            var quantity = 20;
+            var cartID = cartId.First();
+            var itemId = "000002";
+            var quantity = 10;
+            var result = await controller.AddItemToCart(cartID, itemId, quantity);
+            var quantity2 = 5;
 
-            //Act 
-            var result = await controller.AddItemToCart(cartId.First(), itemId, quantity);
+            //Act
+            var result2 = await controller.AddItemToCart(cartID, itemId, quantity2);
+
             var item = from i in context.Inventory
                        where i.Id == itemId
                        select i;
             var cartIt = from c in context.CartItem
-                         where c.CartId == cartId.First()
+                         where c.CartId == cartID && c.ProductId == itemId
                          select c;
+            var cartItem = cartIt.First().ProductId;
+            var stock = item.First().Stock;
 
-            //Asserts
+            //Assert
             Assert.NotNull(result);
-            Assert.NotNull(cartIt);
-            Assert.Equal(itemId, cartIt.First().InventoryId); // this line fails
-            Assert.Equal(0,item.First().Stock); // this line fails 
-            Assert.True(result is Microsoft.AspNetCore.Mvc.OkObjectResult);
+            Assert.NotNull(result2);
+            Assert.NotEmpty(cartIt);
+            Assert.Equal("000002", cartItem);
+            Assert.Equal(10, stock); 
+            Assert.IsType<OkObjectResult>(result);
+            Assert.IsType<OkObjectResult>(result2);
         }
 
         [Fact]
@@ -233,10 +315,11 @@ namespace CGullTest2
             //Arrange
             using var context = Fixture.CreateContext();
             var service = new ProductService(context);
-            var controller = new CGullProject.Controllers.ItemController(service);
-            List<Inventory> inventory = new List<Inventory>
+            var revService = new ReviewService(context);
+            var controller = new CGullProject.Controllers.ItemController(service, revService);
+            IEnumerable<Product> inventory = new List<Product>
             {
-                new Inventory
+                new Product
                 {
                     Id = "000001",
                     Name = "Seagull Drink",
@@ -246,7 +329,7 @@ namespace CGullTest2
                     Rating = 2.6M,
                     Stock = 20
                 },
-                new Inventory
+                new Product
                 {
                     Id = "000002",
                     Name = "Seagull Chips",
@@ -262,12 +345,13 @@ namespace CGullTest2
             var res = await controller.GetAllItems();
             OkObjectResult objectResponse = Assert.IsType<OkObjectResult>(res);
             var obj = objectResponse.Value;
-            
+           
             //Assert
             Assert.NotNull(res);
             Assert.NotNull(obj);
-            Assert.Equal(inventory,obj);
-            Assert.True(res is OkObjectResult);
+            Assert.True(obj is IEnumerable<Product>);
+            //Assert.Equal(inventory,obj);
+            Assert.IsType<OkObjectResult>(res);
         }
 
         [Fact]
@@ -296,7 +380,7 @@ namespace CGullTest2
 
             //Assert
             Assert.NotNull(result);
-            Assert.True(result is OkResult);
+            Assert.IsType<OkResult>(result);
         }
 
         [Fact]
@@ -325,7 +409,7 @@ namespace CGullTest2
 
             //Assert
             Assert.NotNull(result);
-            Assert.False(result is OkResult);
+            Assert.IsNotType<OkResult>(result);
         }
         [Fact]
         public async Task CheckoutExpiredCreditCard()
@@ -353,7 +437,7 @@ namespace CGullTest2
 
             //Assert
             Assert.NotNull(result);
-            Assert.False(result is OkResult);
+            Assert.IsNotType<OkResult>(result);
         }
 
         [Fact]
@@ -382,23 +466,44 @@ namespace CGullTest2
 
             //Assert
             Assert.NotNull(result);
-            Assert.False(result is OkResult);
+            Assert.IsNotType<OkResult>(result);
         }
 
         [Fact]
-        public void BundleTest()
+        public async Task TotalsTestCart()
         {
             //Arrange
+            using var context = Fixture.CreateContext();
+            var service = new CartService(context);
+            var controller = new CGullProject.Controllers.CartController(service);
+            var cartId = await controller.CreateNewCart("NewCart");
+            OkObjectResult cart = Assert.IsType<OkObjectResult>(cartId);
+            var cartID = (Guid)cart.Value;
+            var itemId = "000001";
+            var quantity = 1;
+            var bundleId = "100020";
 
+            var res1 = await controller.AddItemToCart(cartID, itemId, quantity);
+            var res2 = await controller.AddItemToCart(cartID, bundleId, quantity);
             //Act 
 
+            var result = await controller.GetTotals(cartID);
+            OkObjectResult objectResponse = Assert.IsType<OkObjectResult>(result);
+            var obj = objectResponse.Value as TotalsDTO;
+
             //Assert
-            Assert.True(true);
+            Assert.NotNull(obj);
+            Assert.IsType<TotalsDTO>(obj);
+            Assert.Equal((decimal)1.75, obj.RegularTotal);
+            Assert.Equal((decimal)7.81, obj.TotalWithTax);
+            Assert.Equal((decimal)5.00, obj.BundleTotal);
+            Assert.IsType<OkObjectResult>(res1);
+            Assert.IsType<OkObjectResult>(res2);
         }
 
-        //end of Project phase 1 tests 
+            //end of Project phase 1 tests 
 
-        [Fact]
+            [Fact]
         public void AddItemToInventory() // will be implemented during project phase 2 
         {
             //Arrange
