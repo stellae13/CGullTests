@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "N/F6DQSm37zEma3imxekiR4QVvoh5ZxRzypCl4iqvq2FdC9mD5D8b28/VrzU3cPAjfYrLHF2rqfCOrcbTcqV+A==",
+  "dgSpecHash": "fqpXpj5j3Rgax9yULGewpIBj1Q9kJWkr3pqywm5VtUg2Bq1/fhJJ6Yfzd+MwLxedSA3K4bSNgupS9xFvmnkpcg==",
   "success": true,
-  "projectFilePath": "C:\\Users\\stell\\OneDrive\\Desktop\\Windows Programming\\Project\\CGullTest2\\CGullTest2.csproj",
+  "projectFilePath": "C:\\Users\\stell\\Desktop\\Windows Programming\\Project\\Test and Project\\CGullTestsPhase2\\CGullTestsPhase2.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\stell\\.nuget\\packages\\azure.core\\1.25.0\\azure.core.1.25.0.nupkg.sha512",
     "C:\\Users\\stell\\.nuget\\packages\\azure.identity\\1.7.0\\azure.identity.1.7.0.nupkg.sha512",
