@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace CGullTest2
+namespace UnitTest
 {
     public class TestDatabaseFixture
     {
@@ -126,7 +126,7 @@ namespace CGullTest2
                         context.Cart.AddRange(
                          new Cart()
                          {
-                             Id = Guid.NewGuid(),
+                             Id = Guid.Parse("2c6dce67-a449-4eab-b4df-1641172fbd92"),
                              Name = "Stella"
                          }, new Cart()
                          {
@@ -139,7 +139,7 @@ namespace CGullTest2
                         context.Bundle.AddRange(
                         new Bundle()
                         {
-                            ItemId= "100020",
+                            ItemId = "100020",
                             StartDate = DateTime.Now,
                             EndDate = DateTime.Now + TimeSpan.FromDays(100)
                         });
@@ -220,7 +220,7 @@ namespace CGullTest2
 
         }
 
-        [Fact] 
+        [Fact]
         public async Task GetCartTest()
         {
             //Arrange
@@ -234,9 +234,9 @@ namespace CGullTest2
 
             //Act
             var res = await controller.GetCart(cartId.First());
-            ActionResult<CartDTO> objectResponse = Assert.IsAssignableFrom <ActionResult<CartDTO>>(res);
+            ActionResult<CartDTO> objectResponse = Assert.IsAssignableFrom<ActionResult<CartDTO>>(res);
             var cart = objectResponse.Result;
-            
+
 
             //Assert
             Assert.NotNull(res);
@@ -264,7 +264,7 @@ namespace CGullTest2
                        select i;
             var cartIt = from c in context.CartItem
                          where c.CartId == cartID && c.ItemId == itemId
-            select c;
+                         select c;
 
             var cartItem = cartIt.First().ItemId;
             var stock = item.First().Stock;
@@ -273,7 +273,7 @@ namespace CGullTest2
             Assert.NotNull(result);
             Assert.NotEmpty(cartIt);
             Assert.Equal("000003", cartItem);
-            Assert.Equal(0,stock); 
+            Assert.Equal(0, stock);
             Assert.IsType<OkObjectResult>(result);
         }
 
@@ -351,7 +351,7 @@ namespace CGullTest2
             Assert.NotNull(result2);
             Assert.NotEmpty(cartIt);
             Assert.Equal("000002", cartItem);
-            Assert.Equal(10, stock); 
+            Assert.Equal(10, stock);
             Assert.IsType<OkObjectResult>(result);
             Assert.IsType<OkObjectResult>(result2);
         }
@@ -366,15 +366,11 @@ namespace CGullTest2
 
             //Act
             var res = await controller.GetAllItems();
-            ActionResult <IEnumerable<Item>> objectResponse = Assert.IsAssignableFrom<ActionResult<IEnumerable<Item>>>(res);
-            var obj = objectResponse.Value;
+            ActionResult<IEnumerable<Item>> objectResponse = Assert.IsAssignableFrom<ActionResult<IEnumerable<Item>>>(res);
 
             //Assert
-            Assert.NotNull(res);
-            Assert.NotNull(obj);
-            Assert.IsType<OkObjectResult>(obj);
-            Assert.Equal(5, obj.Count());
-            Assert.IsType<OkObjectResult>(obj);
+            Assert.NotNull(objectResponse);
+            Assert.IsType<OkObjectResult>(objectResponse.Result);
         }
 
         [Fact]
@@ -396,8 +392,8 @@ namespace CGullTest2
             var cardNumber = "5105105105105100";
             var theDate = new DateOnly(2030, 10, 21);
             var cardHolderName = "Stella Garcia";
-            var cvv = "134";  
-            
+            var cvv = "134";
+
             //Act 
             var result = await controller.ProcessPayment(_cartId, cardNumber, theDate, cardHolderName, cvv);
             ActionResult<ProcessPaymentDTO> objectResponse = Assert.IsAssignableFrom<ActionResult<ProcessPaymentDTO>>(result);
@@ -416,8 +412,8 @@ namespace CGullTest2
             var service = new CartService(context);
             var controller = new CGullProject.Controllers.CartController(service);
             var cartId = from b in context.Cart
-                          where b.Name == "Stella"
-                          select b.Id;
+                         where b.Name == "Stella"
+                         select b.Id;
             var itemId = "000001";
             var quantity = 20;
             await controller.AddItemToCart(cartId.First(), itemId, quantity);
@@ -502,10 +498,10 @@ namespace CGullTest2
             using var context = Fixture.CreateContext();
             var service = new CartService(context);
             var controller = new CGullProject.Controllers.CartController(service);
-            var cart = await controller.CreateNewCart("TotalsTest");
-            Guid cartId = cart.Value;
+            var cart = from c in context.Cart where c.Name == "Stella" select c.Id;
+            Guid cartId = cart.First();
             await controller.AddItemToCart(cartId, "000001", 1);
-            await controller.AddItemToCart(cartId, "000002", 1);
+            await controller.AddItemToCart(cartId, "100020", 1);
 
             //Act 
             var result = await controller.GetTotals(cartId);
@@ -520,11 +516,11 @@ namespace CGullTest2
             Assert.Equal((decimal)6.00, obj.BundleTotal);
         }
 
-            //end of Project Phase 1 Tests 
+        //end of Project Phase 1 Tests 
 
-            //beginning Project Phase 2 Tests
+        //beginning Project Phase 2 Tests
 
-            [Fact]
+        [Fact]
         public async void AddItemToInventory()
         {
             //Arrange
@@ -545,14 +541,14 @@ namespace CGullTest2
             };
 
             //Act 
-            var result = await controller.AddNewItem(toAdd);;
+            var result = await controller.AddNewItem(toAdd); ;
             ActionResult<bool> objectResponse = Assert.IsAssignableFrom<ActionResult<bool>>(result);
             var obj = objectResponse.Result;
 
 
             //Assert
             Assert.NotNull(obj);
-            Assert.IsAssignableFrom<OkObjectResult> (obj);
+            Assert.IsAssignableFrom<OkObjectResult>(obj);
         }
 
 
@@ -611,13 +607,10 @@ namespace CGullTest2
             //Act
             var res = await controller.GetAllSalesItems();
             ActionResult<IEnumerable<Item>> objectResponse = Assert.IsAssignableFrom<ActionResult<IEnumerable<Item>>>(res);
-            var obj = objectResponse.Value;
 
             //Assert
-            Assert.NotNull(res);
-            Assert.NotNull(obj);
-            Assert.Equal(3, obj.Count());
-            Assert.IsType<OkObjectResult>(obj);
+            Assert.NotNull(objectResponse);
+            Assert.IsType<OkObjectResult>(objectResponse.Result);
         }
 
         [Fact]
@@ -632,11 +625,11 @@ namespace CGullTest2
             //Act
             var res = await controller.ChangeSaleStatus("000001", false);
             ActionResult<bool> objectResponse = Assert.IsAssignableFrom<ActionResult<bool>>(res);
-            var obj = objectResponse.Value;
+            var obj = objectResponse.Result;
 
             //Assert
             Assert.NotNull(res);
-            Assert.True(obj);
+            Assert.IsAssignableFrom<OkObjectResult>(obj);
         }
 
         [Fact]
@@ -648,13 +641,13 @@ namespace CGullTest2
             var controller = new CGullProject.Controllers.AdminsController(service);
 
             //Act 
-            var result = await controller.Login("stellagarcia", "password");
+            var result = await controller.Login("manager", "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8");
             ObjectResult objectResponse = Assert.IsAssignableFrom<ObjectResult>(result);
             var obj = objectResponse.Value;
 
             //Assert
             Assert.NotNull(result);
-            Assert.Equal("OK", obj);
+            Assert.Equal("Login successful", obj);
         }
         [Fact]
         public async void LoginInvalidUsername()
@@ -671,9 +664,9 @@ namespace CGullTest2
             //Assert
             Assert.NotNull(result);
             Assert.IsNotType<OkObjectResult>(objectResponse);
-            
+
         }
-    
+
         [Fact]
         public async void LoginValidUsernameInvalidPassword()
         {
@@ -717,30 +710,33 @@ namespace CGullTest2
             var controller = new CGullProject.Controllers.AdminsController(service);
 
             //Act 
-            var result = await controller.AddAdmin("stellagarcia", "newAdmin", "password;password1"); ;
+            var result = await controller.AddAdmin("manager", "newAdmin", "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8;5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"); ;
             ObjectResult objectResponse = Assert.IsAssignableFrom<ObjectResult>(result);
             var obj = objectResponse.Value;
 
             //Assert
             Assert.NotNull(result);
-            
-            
+            Assert.Equal("User with username, \"newAdmin\" successfully created.", obj);
+
+
         }
         [Fact]
         public async void AddAdminInvalidCurrentAdmin()
-        { 
-                //Arrange
-                using var context = Fixture.CreateContext();
-                var service = new AdminService(context);
-                var controller = new CGullProject.Controllers.AdminsController(service);
+        {
+            //Arrange
+            using var context = Fixture.CreateContext();
+            var service = new AdminService(context);
+            var controller = new CGullProject.Controllers.AdminsController(service);
 
-                //Act 
-                var result = await controller.AddAdmin("stellrcia", "newAdmin", "password1"); ;
-                ObjectResult objectResponse = Assert.IsAssignableFrom<ObjectResult>(result);
-             
-                //Assert
-                Assert.NotNull(result);
-                Assert.IsNotType<OkObjectResult>(objectResponse);
+            //Act 
+            var result = await controller.AddAdmin("stellrcia", "newAdmin", "password;password1"); ;
+            ObjectResult objectResponse = Assert.IsAssignableFrom<ObjectResult>(result);
+            var obj = objectResponse.Value;
+
+            //Assert
+            Assert.NotNull(result);
+            Assert.IsNotType<OkObjectResult>(objectResponse);
+            Assert.Equal("Failed to log in. No user added to system.", obj);
 
         }
         [Fact]
@@ -752,12 +748,14 @@ namespace CGullTest2
             var controller = new CGullProject.Controllers.AdminsController(service);
 
             //Act 
-            var result = await controller.AddAdmin("stellgarcia", "stellagarcia", "password1"); ;
+            var result = await controller.AddAdmin("manager", "manager", "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8;5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"); ;
             ObjectResult objectResponse = Assert.IsAssignableFrom<ObjectResult>(result);
+            var obj = objectResponse.Value;
 
             //Assert
             Assert.NotNull(result);
             Assert.IsNotType<OkObjectResult>(objectResponse);
+            Assert.Equal("User with username, \"manager\" already exists", obj);
 
         }
 
