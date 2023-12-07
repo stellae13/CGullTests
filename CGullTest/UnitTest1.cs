@@ -569,6 +569,7 @@ namespace UnitTest
             //Act 
             var result = await controller.RemoveFromCart(cartId.First(), itemId);
 
+
             //Assert
             Assert.IsType<OkObjectResult>(res);
             Assert.IsType<OkObjectResult>(result);
@@ -592,7 +593,7 @@ namespace UnitTest
             //Assert
             Assert.NotNull(result);
             Assert.NotNull(obj);
-            Assert.False((bool)obj);
+            Assert.IsNotType<OkObjectResult>(result);
         }
 
         [Fact]
